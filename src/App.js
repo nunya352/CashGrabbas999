@@ -17,6 +17,15 @@ import {
   AlertTitle,
   AlertDescription,
   useMediaQuery,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
 } from '@chakra-ui/react';
 import { FaTwitter, FaTiktok, FaTelegram, FaWallet, FaMobile, FaDesktop } from 'react-icons/fa';
 import { ethers } from 'ethers';
@@ -89,13 +98,22 @@ function App() {
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isMetaMaskConnected, setIsMetaMaskConnected] = useState(false);
+  const [tokenAmount, setTokenAmount] = useState(1000); // Default amount
+  const [ethCost, setEthCost] = useState('0');
 
+  // MetaMask detection
   useEffect(() => {
     setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
     if (typeof window !== 'undefined') {
       setIsMetaMaskInstalled(!!window.ethereum);
     }
   }, []);
+
+  // Cost calculation
+  useEffect(() => {
+    const cost = (tokenAmount * parseFloat(TOKEN_PRICE)).toString();
+    setEthCost(cost);
+  }, [tokenAmount]);
 
   const getMetaMaskInstructions = () => {
     if (isMobile) {
@@ -212,7 +230,7 @@ function App() {
           title: 'MetaMask Not Found',
           description: isMobile
             ? 'Please open this site using the MetaMask app browser'
-            : 'Please install the MetaMask browser extension to continue',
+            : 'Please install MetaMask browser extension to continue',
           status: 'warning',
           duration: 10000,
           isClosable: true,
@@ -222,6 +240,7 @@ function App() {
       }
 
       const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
       
       // Check if we're connected first
       const accounts = await provider.listAccounts();
@@ -230,32 +249,17 @@ function App() {
         return;
       }
 
-      const signer = provider.getSigner();
-      
-      // Check network
-      const network = await provider.getNetwork();
-      if (network.chainId !== 1) { // 1 is Ethereum Mainnet
-        toast({
-          title: 'Wrong Network',
-          description: 'Please switch to Ethereum Mainnet in MetaMask',
-          status: 'warning',
-          duration: 5000,
-          isClosable: true,
-        });
-        return;
-      }
-
-      // Create transaction
+      // Create transaction with calculated amount
       const tx = {
         to: CONTRACT_ADDRESS,
-        value: ethers.utils.parseEther(TOKEN_PRICE)
+        value: ethers.utils.parseEther(ethCost)
       };
 
       const transaction = await signer.sendTransaction(tx);
       
       toast({
         title: 'Transaction Submitted',
-        description: 'Please wait while your transaction is being processed...',
+        description: `Buying ${tokenAmount} tokens for ${ethCost} ETH...`,
         status: 'info',
         duration: 5000,
         isClosable: true,
@@ -265,7 +269,7 @@ function App() {
 
       toast({
         title: 'Purchase Successful!',
-        description: 'Your tokens will be sent to your wallet shortly.',
+        description: `${tokenAmount} tokens will be sent to your wallet shortly.`,
         status: 'success',
         duration: 5000,
         isClosable: true,
@@ -337,8 +341,8 @@ function App() {
                 }}
               >
                 <Image
-                  src="/images/sealmoneyspread.png"
-                  alt="MoonCoin Logo"
+                  src="/images/cashseal.jpg"
+                  alt="CashGrabbas Logo"
                   width="100%"
                   height="100%"
                   objectFit="contain"
@@ -353,7 +357,7 @@ function App() {
             </Box>
 
             {/* Buy Section */}
-            <VStack spacing={4}>
+            <VStack spacing={6}>
               <Button
                 colorScheme="purple"
                 size="lg"
@@ -363,16 +367,49 @@ function App() {
               >
                 {isMetaMaskConnected ? 'Wallet Connected' : 'Connect Wallet'}
               </Button>
-              <Button
-                colorScheme="cyan"
-                size="lg"
-                onClick={buyTokens}
-                isDisabled={!isMetaMaskInstalled || !isMetaMaskConnected}
+
+              <Box
+                p={6}
+                borderRadius="lg"
+                bg="whiteAlpha.100"
+                backdropFilter="blur(10px)"
+                w="100%"
+                maxW="400px"
               >
-                Buy Tokens
-              </Button>
-              <Text fontSize="sm">
-                1 ETH = {1/parseFloat(TOKEN_PRICE)} Tokens
+                <VStack spacing={4}>
+                  <Stat textAlign="center">
+                    <StatLabel fontSize="lg">Token Amount</StatLabel>
+                    <NumberInput
+                      min={100}
+                      max={1000000}
+                      step={100}
+                      value={tokenAmount}
+                      onChange={(value) => setTokenAmount(parseInt(value))}
+                      size="lg"
+                    >
+                      <NumberInputField textAlign="center" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                    <StatHelpText>Cost: {ethCost} ETH</StatHelpText>
+                  </Stat>
+
+                  <Button
+                    colorScheme="cyan"
+                    size="lg"
+                    w="100%"
+                    onClick={buyTokens}
+                    isDisabled={!isMetaMaskInstalled || !isMetaMaskConnected}
+                  >
+                    Buy {tokenAmount} Tokens
+                  </Button>
+                </VStack>
+              </Box>
+
+              <Text fontSize="sm" color="gray.300">
+                Rate: 1 ETH = {1/parseFloat(TOKEN_PRICE)} Tokens
               </Text>
             </VStack>
 
